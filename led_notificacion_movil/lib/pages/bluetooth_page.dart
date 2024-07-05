@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'package:led_notificacion_movil/pages/apagado.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'apagado.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 class BluetoothScreen extends StatefulWidget {
   @override
@@ -12,6 +17,7 @@ class BluetoothScreen extends StatefulWidget {
 
 class _BluetoothScreenState extends State<BluetoothScreen> {
   FlutterBluetoothSerial bluetooth = FlutterBluetoothSerial.instance;
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
   List<BluetoothDevice> devicesList = [];
   BluetoothConnection? connection;
   bool isConnected = false;
@@ -21,6 +27,7 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
   void initState() {
     super.initState();
     requestPermissions();
+    setupFirebaseMessaging();
   }
 
   void requestPermissions() async {
@@ -28,9 +35,29 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
       Permission.bluetooth,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
-      Permission.location
+      Permission.location,
+      Permission.notification,
     ].request();
     getPairedDevices();
+  }
+
+  void setupFirebaseMessaging() async {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('Received a message while in the foreground!');
+      print('Message data: ${message.data}');
+      if (message.notification != null) {
+        print('Message contained a notification: ${message.notification}');
+        _showNotification(message.notification!.title, message.notification!.body);
+      }
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('A new onMessageOpenedApp event was published!');
+      Navigator.pushNamed(context, '/message', arguments: message);
+    });
+
+    String? token = await messaging.getToken();
+    print('Device Token: $token');
   }
 
   void getPairedDevices() async {
@@ -69,10 +96,8 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
         print('Disconnected by remote request');
       });
 
-      // Enviar comando "OFF" para apagar el LED
       _sendCommand("OFF\n");
 
-      // Navega a PantallaApagado después de una conexión exitosa, pasando el nombre del dispositivo y la conexión Bluetooth
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -91,9 +116,33 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
     try {
       connection!.output.add(Uint8List.fromList(command.codeUnits));
       connection!.output.allSent;
+      if (command == "ON\n") {
+        sendNotification("LED Encendido", "El LED ha sido encendido");
+      } else if (command == "OFF\n") {
+        sendNotification("LED Apagado", "El LED ha sido apagado");
+      }
     } catch (e) {
       print('Error sending command: $e');
     }
+  }
+
+  void sendNotification(String title, String body) async {
+    _showNotification(title, body);
+  }
+
+  void _showNotification(String? title, String? body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'high_importance_channel', 'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+        0, title, body, platformChannelSpecifics,
+        payload: 'item x');
   }
 
   @override
@@ -106,45 +155,44 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
         ),
         backgroundColor: Colors.black,
       ),
-      body: Container(
-        color: Colors.black, // Fondo negro
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                itemCount: devicesList.length,
-                itemBuilder: (context, index) {
-                  return ListTile(
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: devicesList.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    connectToDevice(devicesList[index]);
+                  },
+                  child: ListTile(
                     title: Text(
                       devicesList[index].name ?? 'Unknown',
-                      style: const TextStyle(color: Colors.white), // Texto blanco
+                      style: const TextStyle(color: Colors.black),
                     ),
                     subtitle: Text(
                       devicesList[index].address.toString(),
-                      style: const TextStyle(color: Colors.grey), // Texto gris
+                      style: const TextStyle(color: Colors.grey),
                     ),
-                    onTap: () {
-                      connectToDevice(devicesList[index]);
-                    },
-                  );
-                },
-              ),
-            ),
-            isConnected
-                ? Column(
-                    children: [
-                      Text(
-                        'Connected to ${connectedDevice!.name} (${connectedDevice!.address})',
-                        style: const TextStyle(color: Colors.white), // Texto blanco
-                      ),
-                    ],
-                  )
-                : const Text(
-                    'Not connected',
-                    style: TextStyle(color: Colors.white), // Texto blanco
                   ),
-          ],
-        ),
+                );
+              },
+            ),
+          ),
+          isConnected
+              ? Column(
+                  children: [
+                    Text(
+                      'Connected to ${connectedDevice!.name} (${connectedDevice!.address})',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                )
+              : const Text(
+                  'Not connected',
+                  style: TextStyle(color: Colors.white),
+                ),
+        ],
       ),
     );
   }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'dart:async'; // Importación de Timer
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'apagado.dart'; // Importar la pantalla PantallaApagado
 import 'dart:typed_data';
+import 'dart:async'; // Importación de Timer
 
-import 'package:led_notificacion_movil/pages/apagado.dart';
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 class WhitePage extends StatefulWidget {
   final String deviceName;
@@ -28,6 +31,62 @@ class _WhitePageState extends State<WhitePage> {
   Timer? debounceTemperature;
   Timer? debounceIntensity;
 
+  void _apagar() async {
+    try {
+      widget.connection.output.add(Uint8List.fromList("OFF\n".codeUnits));
+      await widget.connection.output.allSent;
+      sendNotification("LED Apagado", "El LED ha sido apagado");
+
+      // Navegar de regreso a PantallaApagado
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PantallaApagado(
+            deviceName: widget.deviceName,
+            connection: widget.connection,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error sending data: $e');
+    }
+  }
+
+  void sendNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'high_importance_channel', 'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+        0, title, body, platformChannelSpecifics,
+        payload: 'item x');
+  }
+
+  void _sendTemperature(int temperature) {
+    try {
+      String command = "T$temperature\n";
+      widget.connection.output.add(Uint8List.fromList(command.codeUnits));
+      widget.connection.output.allSent;
+    } catch (e) {
+      print('Error sending temperature: $e');
+    }
+  }
+
+  void _sendIntensity(double intensity) {
+    try {
+      String command = "I${(intensity * 100).toInt()}\n";
+      widget.connection.output.add(Uint8List.fromList(command.codeUnits));
+      widget.connection.output.allSent;
+    } catch (e) {
+      print('Error sending intensity: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,57 +100,16 @@ class _WhitePageState extends State<WhitePage> {
         child: Column(
           children: [
             const Padding(
-              padding: const EdgeInsets.only(top: 80.0),
+              padding: EdgeInsets.only(top: 80.0),
               child: Text(
-                ("White")
+                "White",
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10.0, horizontal: 16.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12.0),
-                      child: SliderTheme(
-                        data: SliderTheme.of(context).copyWith(
-                          trackHeight: 30.0,
-                          thumbShape:
-                              const RoundSliderThumbShape(enabledThumbRadius: 16.0),
-                          overlayShape:
-                              const RoundSliderOverlayShape(overlayRadius: 24.0),
-                          activeTrackColor: Color.lerp(
-                              Colors.white, Colors.yellow, temperature / 100),
-                          inactiveTrackColor: Colors.grey.withOpacity(0.5),
-                          thumbColor: const Color.fromARGB(255, 198, 190, 116),
-                          overlayColor:
-                              const Color.fromARGB(255, 19, 19, 18).withOpacity(0.2),
-                        ),
-                        child: Slider(
-                          value: temperature,
-                          onChanged: (newValue) {
-                            setState(() {
-                              temperature = newValue;
-                              currentColor = Color.lerp(Colors.white,
-                                  Colors.yellow, temperature / 100)!;
-                            });
-                            if (debounceTemperature?.isActive ?? false)
-                              debounceTemperature?.cancel();
-                            debounceTemperature =
-                                Timer(const Duration(milliseconds: 500), () {
-                              _sendTemperature(newValue.toInt());
-                            });
-                          },
-                          min: 0,
-                          max: 100,
-                          divisions: 100,
-                          label: 'Temperatura',
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 40.0),
                   SizedBox(
                     width: 220,
@@ -110,10 +128,10 @@ class _WhitePageState extends State<WhitePage> {
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 30.0,
-                          thumbShape:
-                              const RoundSliderThumbShape(enabledThumbRadius: 16.0),
-                          overlayShape:
-                              const RoundSliderOverlayShape(overlayRadius: 24.0),
+                          thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 16.0),
+                          overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 24.0),
                           activeTrackColor:
                               Color.lerp(Colors.grey, Colors.white, intensity),
                           inactiveTrackColor: Colors.grey.withOpacity(0.5),
@@ -147,14 +165,17 @@ class _WhitePageState extends State<WhitePage> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GestureDetector(
-                onTap: _Apagado,
+                onTap: _apagar,
                 child: Container(
                   padding: const EdgeInsets.all(8.0),
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.power_settings_new,
-                      size: 36.0, color: Colors.white),
+                  child: const Icon(
+                    Icons.power_settings_new,
+                    size: 36.0,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -162,46 +183,5 @@ class _WhitePageState extends State<WhitePage> {
         ),
       ),
     );
-  }
-
-  void _sendTemperature(int temperature) {
-    try {
-      String command = "T$temperature\n";
-      widget.connection.output.add(Uint8List.fromList(command.codeUnits));
-      widget.connection.output.allSent;
-    } catch (e) {
-      print('Error sending temperature: $e');
-    }
-  }
-
-  void _sendIntensity(double intensity) {
-    try {
-      String command = "I${(intensity * 100).toInt()}\n";
-      widget.connection.output.add(Uint8List.fromList(command.codeUnits));
-      widget.connection.output.allSent;
-    } catch (e) {
-      print('Error sending intensity: $e');
-    }
-  }
-
-  void _Apagado() async {
-    // Enviar señal al módulo Bluetooth para apagar el LED RGB
-    try {
-      widget.connection.output.add(Uint8List.fromList("OFF\n".codeUnits));
-      await widget.connection.output.allSent;
-
-      // Navegar de regreso a la pantalla "PantallaApagado"
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PantallaApagado(
-            deviceName: widget.deviceName,
-            connection: widget.connection,
-          ),
-        ),
-      );
-    } catch (e) {
-      print('Error sending data: $e');
-    }
   }
 }

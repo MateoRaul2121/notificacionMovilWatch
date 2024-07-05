@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'white.dart'; // Asegúrate de importar la pantalla WhitePage
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'white.dart'; // Importar la pantalla WhitePage
 import 'dart:typed_data';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 class PantallaApagado extends StatefulWidget {
   final String deviceName;
@@ -18,6 +22,42 @@ class PantallaApagado extends StatefulWidget {
 }
 
 class _PantallaApagadoState extends State<PantallaApagado> {
+  void _encender() async {
+    try {
+      widget.connection.output.add(Uint8List.fromList("ON\n".codeUnits));
+      await widget.connection.output.allSent;
+      sendNotification("LED Encendido", "El LED ha sido encendido");
+
+      // Navegar a la pantalla WhitePage
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WhitePage(
+            deviceName: widget.deviceName,
+            connection: widget.connection,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error sending data: $e');
+    }
+  }
+
+  void sendNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'high_importance_channel', 'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+        0, title, body, platformChannelSpecifics,
+        payload: 'item x');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,7 +86,7 @@ class _PantallaApagadoState extends State<PantallaApagado> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: GestureDetector(
-                onTap: _Encendido,
+                onTap: _encender,
                 child: Container(
                   padding: const EdgeInsets.all(8.0),
                   decoration: const BoxDecoration(
@@ -64,26 +104,5 @@ class _PantallaApagadoState extends State<PantallaApagado> {
         ),
       ),
     );
-  }
-
-  void _Encendido() async {
-    // Enviar señal al módulo Bluetooth para encender el LED RGB en blanco normal
-    try {
-      widget.connection.output.add(Uint8List.fromList("ON\n".codeUnits));
-      await widget.connection.output.allSent;
-
-      // Navegar a la pantalla "WhitePage"
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => WhitePage(
-            deviceName: widget.deviceName,
-            connection: widget.connection,
-          ),
-        ),
-      );
-    } catch (e) {
-      print('Error sending data: $e');
-    }
   }
 }

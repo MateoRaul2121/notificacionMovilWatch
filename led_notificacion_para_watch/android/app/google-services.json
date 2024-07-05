@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "586906887775",
+    "project_id": "lednotificaciones",
+    "storage_bucket": "lednotificaciones.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:586906887775:android:e17b0fcf7a4270f3ba1dea",
+        "android_client_info": {
+          "package_name": "com.example.led_notificacion_movil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAioQrydl-2k7YQDa8ivcu0LXOAzQzdWSI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

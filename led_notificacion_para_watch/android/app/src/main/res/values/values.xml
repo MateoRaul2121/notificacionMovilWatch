@@ -1,0 +1,10 @@
+<resources>
+    <string name="default_web_client_id" translatable="false"></string>
+    <string name="firebase_database_url" translatable="false"></string>
+    <string name="gcm_defaultSenderId" translatable="false">586906887775</string>
+    <string name="google_api_key" translatable="false">AIzaSyAioQrydl-2k7YQDa8ivcu0LXOAzQzdWSI</string>
+    <string name="google_app_id" translatable="false">1:586906887775:android:e17b0fcf7a4270f3ba1dea</string>
+    <string name="google_crash_reporting_api_key" translatable="false"></string>
+    <string name="project_id" translatable="false">lednotificaciones</string>
+    <string name="storage_bucket" translatable="false">lednotificaciones.appspot.com</string>
+</resources>

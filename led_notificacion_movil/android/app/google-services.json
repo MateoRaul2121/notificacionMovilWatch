@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "586906887775",
+    "firebase_url": "https://lednotificaciones-default-rtdb.firebaseio.com",
     "project_id": "lednotificaciones",
     "storage_bucket": "lednotificaciones.appspot.com"
   },
